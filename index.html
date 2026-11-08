@@ -424,7 +424,7 @@ const Processing = (() => {
     static get ENDPOINT(){ return (window.IMLA_OCR_URL || "").trim(); }
     async available(){ try { const s = await window.claude?.use?.("sample"); if (s){ const l = await s.limits(); if (l.images) return true; } } catch {} return !!OCRProcessor.ENDPOINT; }
     async _remote(blob){
-      let r; try { r = await fetch(OCRProcessor.ENDPOINT, {method: "POST", headers: {"content-type": "image/jpeg"}, body: blob}); } catch { throw new AppError("ocr_failed", "تعذّر الاتصال بخدمة قراءة الخط. أعد المحاولة أو اكتب النص يدوياً."); }
+      let r; try { r = await fetch(OCRProcessor.ENDPOINT, {method: "POST", headers: {"content-type": "image/jpeg"}, body: blob, signal: AbortSignal.timeout(45000)}); } catch { throw new AppError("ocr_failed", "تعذّر الاتصال بخدمة قراءة الخط. أعد المحاولة أو اكتب النص يدوياً."); }
       if (r.status === 503) throw new AppError("ocr_busy", "الخدمة مزدحمة الآن. أعد المحاولة بعد قليل، أو اكتب النص يدوياً.");
       if (r.status === 429) throw new AppError("ocr_busy", "طلبات كثيرة الآن. انتظر قليلاً ثم أعد المحاولة، أو اكتب النص يدوياً.");
       if (r.status === 503 || r.status === 429) throw new AppError("ocr_busy", "خدمة قراءة الخط مزدحمة الآن. أعد المحاولة بعد قليل، أو اكتب النص يدوياً.");
