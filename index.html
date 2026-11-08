@@ -641,7 +641,7 @@ const Application = (() => {
     logout(){ Trace.log("Application", "logout()"); player.stop(); this.dropSubmission(); this.user = null; Data.UserRepository.session(null); },
     /* use cases: Select Sentence / Enter Sentence */
     deleteSentence(id){ Trace.log("Application", "deleteSentence()"); const lvl = (this.sentence(id) || {}).level; const n = Data.SentenceRepository.remove(this._uid(), id); if (lvl) this._keepOne(lvl); return n; },
-    _keepOne(level){ if (!this.sentences().some(x => x.level === level)) this.generate(level); },   /* a level is never left empty */
+    _keepOne(level){},   /* a level may be left empty: the person asked for "delete all" to really delete all */
     clearLevel(level){ Trace.log("Application", "clearLevel()"); Data.SentenceRepository.clearLevel(this._uid(), level); this._keepOne(level); },
     voices(){ return player.voices(); },
     getVoice(){ return player.voiceName; },
@@ -770,7 +770,7 @@ const norm = Processing.norm;
   function practice(){
     const all = App.sentences(), list = all.filter(s => s.level === S.level);
     const mine = list;
-    const sel = list.find(s => s.sentenceId === S.selectedId) || (list.length ? list[Math.floor(Math.random() * list.length)] : all[0]); S.selectedId = sel.sentenceId;
+    const sel = list.find(s => s.sentenceId === S.selectedId) || (list.length ? list[Math.floor(Math.random() * list.length)] : null); S.selectedId = sel ? sel.sentenceId : ""; const none = !sel;
     const LV = LEVELS.find(l => l.n === S.level);
     return `<div class="grid">
       <div class="stack">
@@ -779,7 +779,7 @@ const norm = Processing.norm;
           <p class="muted lvdesc">${LV.d}</p>
           <button class="btn primary" style="width:100%;margin-bottom:12px" data-act="gen">جملة جديدة تلقائياً</button>
           <div class="muted" style="margin:-2px 0 12px;text-align:center;font-size:13.5px">اختر جملة من القائمة، أو اضغط «جملة جديدة» لإضافة جملة مسجّلة أخرى</div>
-          <div class="slist" role="group" aria-label="الجمل">${mine.map((s, i) => { const own = true, ask = S.delId === s.sentenceId; return `<div class="sitem"><button class="sbtn${own ? " has-del" : ""}" data-act="pick" data-v="${s.sentenceId}" aria-pressed="${s.sentenceId === sel.sentenceId}"><b>جملة ${i + 1}</b><small>${s.wordCount} كلمات${s.custom ? " · جملتي" : s.generated ? " · تلقائية" : ""}</small></button>${own ? `<button class="sdel${ask ? " ask" : ""}" data-act="del" data-v="${s.sentenceId}" aria-label="${ask ? "تأكيد حذف الجملة " : "حذف الجملة "}${i + 1}" title="${ask ? "اضغط مرة أخرى للحذف" : "حذف"}">${ask ? "حذف؟" : ICON.trash}</button>` : ""}</div>`; }).join("")}</div>
+          <div class="slist" role="group" aria-label="الجمل">${mine.map((s, i) => { const own = true, ask = S.delId === s.sentenceId; return `<div class="sitem"><button class="sbtn${own ? " has-del" : ""}" data-act="pick" data-v="${s.sentenceId}" aria-pressed="${!!sel && s.sentenceId === sel.sentenceId}"><b>جملة ${i + 1}</b><small>${s.wordCount} كلمات${s.custom ? " · جملتي" : s.generated ? " · تلقائية" : ""}</small></button>${own ? `<button class="sdel${ask ? " ask" : ""}" data-act="del" data-v="${s.sentenceId}" aria-label="${ask ? "تأكيد حذف الجملة " : "حذف الجملة "}${i + 1}" title="${ask ? "اضغط مرة أخرى للحذف" : "حذف"}">${ask ? "حذف؟" : ICON.trash}</button>` : ""}</div>`; }).join("")}</div>
           ${list.length > 1 ? `<button class="btn sm ghost${S.delId === "all" ? " danger" : ""}" style="margin-top:8px" data-act="delall">${S.delId === "all" ? "تأكيد: حذف كل جمل هذا المستوى" : "حذف كل جمل هذا المستوى"}</button>` : ""}
           <div class="or">أو اكتب جملتك</div>
           <form class="field-row" id="addForm"><input type="text" id="newSentence" placeholder="اكتب جملة عربية لتُنطق" aria-label="جملة جديدة" value="${esc(S.draftSentence)}"><button class="btn" type="submit">أضف</button></form>
@@ -799,8 +799,8 @@ const norm = Processing.norm;
           <label class="f" for="voiceSel" style="margin-top:12px">الصوت
             <select id="voiceSel"><option value="">${App.hasRecorded() ? "تلقائي (الصوت المسجّل للموقع)" : S.voices.length ? "تلقائي (الأفضل المتاح: " + esc(S.voices[0].name) + ")" : "تلقائي"}</option>${S.voices.map(v => `<option value="${esc(v.name)}"${v.name === S.voice ? " selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}</select></label>
           ${S.clipsLoading ? `<div class="msg" role="status">جارٍ تحميل الأصوات المسجّلة… (قد يستغرق ثواني في الاتصال البطيء)<div class="pbar"><i></i></div></div>` : ""}${!S.clipsLoading && App.ttsSupported() && !App.hasRecorded() && !S.voices.length && S.voicesLoaded ? `<div class="msg warn">لا يوجد صوت عربي على هذا الجهاز. ثبّت صوتاً عربياً من إعدادات اللغة في النظام، أو افتح الموقع في Microsoft Edge فهو يوفّر أصواتاً عربية طبيعية.</div>` : ""}
-          <div class="hidden-sentence ${S.reveal ? "" : "mask"}" aria-live="polite">${S.reveal ? esc(sel.textContent) : "النص مخفي"}</div>
-          <button class="btn sm ghost" style="margin-top:8px" data-act="reveal">${S.reveal ? "إخفاء النص" : "إظهار النص"}</button>
+          <div class="hidden-sentence ${S.reveal ? "" : "mask"}" aria-live="polite">${none ? "لا توجد جمل في هذا المستوى. اضغط «جملة جديدة تلقائياً» أو اكتب جملتك." : S.reveal ? esc(sel.textContent) : "النص مخفي"}</div>
+          <button class="btn sm ghost" style="margin-top:8px" ${none ? "disabled" : ""} data-act="reveal">${S.reveal ? "إخفاء النص" : "إظهار النص"}</button>
         </section>
 
         <section class="card" aria-labelledby="h2"><h2 id="h2"><span class="step">٢</span>صوّر ورقتك أو اكتب النص</h2>
@@ -945,8 +945,10 @@ const norm = Processing.norm;
 
   /* ---------- actions ---------- */
   const errText = e => (e && e.message) || "حدث خطأ غير متوقع. أعد المحاولة.";
+  const noSentence = () => !S.selectedId || !App.sentence(S.selectedId);
   async function listen(repeat){
     setMsg("audio"); if (S.playing){ App.stopAudio(); }
+    if (noSentence()){ S.playing = false; setMsg("audio", "warn", "لا توجد جملة مختارة. اضغط «جملة جديدة تلقائياً» أو اختر جملة من القائمة أو اكتب جملتك أولاً."); render(); return; }
     S.playing = true; render();
     try { await (repeat ? App.repeat(S.rate) : App.listen(S.selectedId, S.rate)); }
     catch (e) { setMsg("audio", "warn", errText(e) + (e.code === "tts" ? " يمكنك قراءة الجملة بدلاً من سماعها." : "")); if (e.code === "tts") S.reveal = true; }
@@ -963,7 +965,8 @@ const norm = Processing.norm;
     S.prep = false; render();
   }
   async function evalImage(){
-    setMsg("upload"); S.busy = "ocr"; render();
+    setMsg("upload"); if (noSentence()){ setMsg("upload", "warn", "لا توجد جملة مختارة. اضغط «جملة جديدة تلقائياً» أو اختر جملة من القائمة أو اكتب جملتك أولاً."); render(); return; }
+    S.busy = "ocr"; render();
     try {
       const {view} = await App.evaluateImage(S.selectedId);
       S.result = view; S.editText = view.recognized; setMsg("upload");
@@ -976,6 +979,7 @@ const norm = Processing.norm;
     if (S.result) document.getElementById("resultCol")?.scrollIntoView({behavior: "smooth", block: "start"});
   }
   function evalTyped(text, meta){
+    if (noSentence()){ setMsg("upload", "warn", "لا توجد جملة مختارة. اضغط «جملة جديدة تلقائياً» أو اختر جملة من القائمة أو اكتب جملتك أولاً."); return; }
     try { const {view} = App.evaluateText(S.selectedId, text, meta); S.result = view; S.editText = view.recognized; setMsg("upload"); }
     catch (e) { setMsg("upload", "bad", errText(e)); }
     render();
