@@ -426,7 +426,7 @@ const Processing = (() => {
     async _remote(blob){
       let r; try { r = await fetch(OCRProcessor.ENDPOINT, {method: "POST", headers: {"content-type": "image/jpeg"}, body: blob}); } catch { throw new AppError("ocr_failed", "تعذّر الاتصال بخدمة قراءة الخط. أعد المحاولة أو اكتب النص يدوياً."); }
       if (r.status === 429) throw new AppError("ocr_busy", "طلبات كثيرة الآن. انتظر قليلاً ثم أعد المحاولة، أو اكتب النص يدوياً.");
-      if (!r.ok) throw new AppError("ocr_failed", "تعذّر التعرّف على الخط. أعد المحاولة أو اكتب النص يدوياً.");
+      if (!r.ok){ let d = ""; try { const j = await r.json(); d = " [" + r.status + ": " + (j.error || "") + " " + (j.detail || "") + "]"; } catch { d = " [" + r.status + "]"; } throw new AppError("ocr_failed", "تعذّر التعرّف على الخط." + d.slice(0, 260)); }
       return r.json();
     }
     /* processImage(imagePath) in the class diagram: here it receives the prepared image blob of the submission */
