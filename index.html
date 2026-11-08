@@ -116,6 +116,13 @@ td.w{font-family:var(--font-write);font-size:22px;white-space:nowrap}
 .fb{background:var(--accent-soft);border-radius:10px;padding:12px 14px}
 .spin{width:18px;height:18px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:sp .8s linear infinite;display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}
+.pbar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:10px}
+.pbar i{display:block;height:100%;width:40%;border-radius:99px;background:var(--accent);animation:pb 1.2s ease-in-out infinite}
+.pbar.fill i{width:6%;animation:pf 14s cubic-bezier(.1,.6,.3,1) forwards}
+@keyframes pb{0%{margin-inline-start:-40%}100%{margin-inline-start:100%}}
+@keyframes pf{to{width:92%}}
+.ptxt{font-size:13px;color:var(--mute);margin-top:6px}
+@media(prefers-reduced-motion:reduce){.pbar i{animation:none;width:60%}}
 .auth{max-width:440px;margin:6vh auto 0;display:flex;flex-direction:column;gap:14px}
 .auth .brand b{font-size:54px}
 .hist{display:flex;flex-direction:column;gap:10px}
@@ -791,7 +798,7 @@ const norm = Processing.norm;
           ${S.rate === "dictation" ? `<div class="muted" style="margin-top:8px">وضع الإملاء: تُقرأ كل كلمة وحدها مع وقفة، ثم الجملة كاملة.</div>` : ""}
           <label class="f" for="voiceSel" style="margin-top:12px">الصوت
             <select id="voiceSel"><option value="">${App.hasRecorded() ? "تلقائي (الصوت المسجّل للموقع)" : S.voices.length ? "تلقائي (الأفضل المتاح: " + esc(S.voices[0].name) + ")" : "تلقائي"}</option>${S.voices.map(v => `<option value="${esc(v.name)}"${v.name === S.voice ? " selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}</select></label>
-          ${App.ttsSupported() && !App.hasRecorded() && !S.voices.length && S.voicesLoaded ? `<div class="msg warn">لا يوجد صوت عربي على هذا الجهاز. ثبّت صوتاً عربياً من إعدادات اللغة في النظام، أو افتح الموقع في Microsoft Edge فهو يوفّر أصواتاً عربية طبيعية.</div>` : ""}
+          ${S.clipsLoading ? `<div class="msg" role="status">جارٍ تحميل الأصوات المسجّلة… (قد يستغرق ثواني في الاتصال البطيء)<div class="pbar"><i></i></div></div>` : ""}${!S.clipsLoading && App.ttsSupported() && !App.hasRecorded() && !S.voices.length && S.voicesLoaded ? `<div class="msg warn">لا يوجد صوت عربي على هذا الجهاز. ثبّت صوتاً عربياً من إعدادات اللغة في النظام، أو افتح الموقع في Microsoft Edge فهو يوفّر أصواتاً عربية طبيعية.</div>` : ""}
           <div class="hidden-sentence ${S.reveal ? "" : "mask"}" aria-live="polite">${S.reveal ? esc(sel.textContent) : "النص مخفي"}</div>
           <button class="btn sm ghost" style="margin-top:8px" data-act="reveal">${S.reveal ? "إخفاء النص" : "إظهار النص"}</button>
         </section>
@@ -819,8 +826,10 @@ const norm = Processing.norm;
         <input type="file" id="camIn" accept="image/*" capture="environment" hidden>
         <input type="file" id="fileIn" accept="image/jpeg,image/png,image/heic,image/heif,image/webp,.heic,.heif" hidden>
       </div>
+      ${S.prep ? `<div role="status" aria-live="polite"><div class="pbar"><i></i></div><div class="ptxt">جارٍ تجهيز الصورة…</div></div>` : ""}
       ${p ? `<div class="preview"><img src="${p.url}" alt="صورة الورقة التي رفعتها"><div style="min-width:0"><div><span class="chip ok">${esc(p.format)}</span> <span class="muted">${p.w}×${p.h}</span></div><div class="muted">تُعالج الصورة في متصفحك ولا تُحفظ بعد التصحيح.</div><button class="btn sm ghost" data-act="rmimg" style="margin-top:6px">إزالة الصورة</button></div></div>` : ""}
       <button class="btn primary" style="width:100%;margin-top:14px" data-act="evalimg" ${!p || S.busy ? "disabled" : ""}>${S.busy === "ocr" ? '<span class="spin" aria-hidden="true"></span>جارٍ قراءة الخط، قد يستغرق عدة ثوانٍ…' : "صحّح الإملاء"}</button>
+      ${S.busy === "ocr" ? `<div role="status" aria-live="polite"><div class="pbar fill"><i></i></div><div class="ptxt">جارٍ إرسال الصورة وقراءة الخط… لا تغلق الصفحة</div></div>` : ""}
       ${S.ocrOk === false ? `<div class="msg warn">خدمة قراءة الخط غير متاحة في هذا العرض. اكتب ما في ورقتك في تبويب «كتابة النص» لتحصل على التصحيح نفسه.</div>` : ""}
     </div>`;
   }
@@ -944,14 +953,14 @@ const norm = Processing.norm;
     S.playing = false; render();
   }
   async function takeFile(file){
-    if (!file) return; setMsg("upload"); S.result = null;
+    if (!file) return; setMsg("upload"); S.result = null; S.prep = true; render();
     try {
       const sub = await App.uploadHandwriting(file);
       const bmp = await createImageBitmap(sub.blob);
       S.preview = {url: sub.imagePath, format: sub.imageFormat, w: bmp.width, h: bmp.height};
       setMsg("upload", "ok", "الصورة جاهزة.");
     } catch (e) { S.preview = null; setMsg("upload", "bad", errText(e)); }
-    render();
+    S.prep = false; render();
   }
   async function evalImage(){
     setMsg("upload"); S.busy = "ocr"; render();
@@ -1031,7 +1040,7 @@ const norm = Processing.norm;
     if (App.user && S.tab === "practice" && (!document.activeElement || document.activeElement === document.body)) render();
   }
   if ("speechSynthesis" in window) speechSynthesis.addEventListener("voiceschanged", loadVoices);
-  async function probeOcr(){ loadVoices(); App.loadClips().then(() => { if (App.user && S.tab === "practice" && (!document.activeElement || document.activeElement === document.body)) render(); }); S.ocrOk = await App.ocrAvailable(); S.tts = App.ttsSupported(); if (S.ocrOk === false && S.mode === "image" && !App.submission) { render(); } }
+  async function probeOcr(){ loadVoices(); S.clipsLoading = true; App.loadClips().finally(() => { S.clipsLoading = false; }).then(() => { if (App.user && S.tab === "practice" && (!document.activeElement || document.activeElement === document.body)) render(); }); S.ocrOk = await App.ocrAvailable(); S.tts = App.ttsSupported(); if (S.ocrOk === false && S.mode === "image" && !App.submission) { render(); } }
 
   /* exposed only for the test harness */
   window.__imla = {App, S, render};
