@@ -1,4 +1,7 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>إملائي</title>
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>window.IMLA_OCR_URL = "https://imla-ocr.raoufaliousalah.workers.dev";
+</script>
+<title>إملائي</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
 <style>
@@ -417,12 +420,20 @@ const Processing = (() => {
   /* ---- OCR for Arabic handwriting (Claude vision through the page's `sample` capability) ---- */
   class OCRProcessor {
     constructor(){ this.modelVersion = "Claude vision · default tier"; this.processingTimeLimit = 3000; }
-    async available(){ try { const s = await window.claude?.use?.("sample"); if (!s) return false; const l = await s.limits(); return !!l.images; } catch { return false; } }
+    /* standalone hosting: set this to your own OCR proxy URL (see ocr-worker.js); inside claude.ai the built-in capability is used instead */
+    static get ENDPOINT(){ return (window.IMLA_OCR_URL || "").trim(); }
+    async available(){ try { const s = await window.claude?.use?.("sample"); if (s){ const l = await s.limits(); if (l.images) return true; } } catch {} return !!OCRProcessor.ENDPOINT; }
+    async _remote(blob){
+      let r; try { r = await fetch(OCRProcessor.ENDPOINT, {method: "POST", headers: {"content-type": "image/jpeg"}, body: blob}); } catch { throw new AppError("ocr_failed", "تعذّر الاتصال بخدمة قراءة الخط. أعد المحاولة أو اكتب النص يدوياً."); }
+      if (r.status === 429) throw new AppError("ocr_busy", "طلبات كثيرة الآن. انتظر قليلاً ثم أعد المحاولة، أو اكتب النص يدوياً.");
+      if (!r.ok) throw new AppError("ocr_failed", "تعذّر التعرّف على الخط. أعد المحاولة أو اكتب النص يدوياً.");
+      return r.json();
+    }
     /* processImage(imagePath) in the class diagram: here it receives the prepared image blob of the submission */
     async processImage(imagePath){
       Trace.log("Processing", "OCRProcessor.processImage()");
-      const sample = await window.claude?.use?.("sample");
-      if (!sample) throw new AppError("ocr_unavailable", "خدمة التعرّف على الخط غير متاحة هنا.");
+      let sample = null; try { sample = await window.claude?.use?.("sample"); } catch {}
+      if (!sample && !OCRProcessor.ENDPOINT) throw new AppError("ocr_unavailable", "خدمة التعرّف على الخط غير متاحة هنا.");
       const prompt = "The attached image is a photo of a student's HANDWRITTEN Arabic dictation. " +
         "Arabic is read right to left, so the first word is at the right end of the first line; keep that order and join several lines in order. " +
         "Read each word LETTER BY LETTER, paying close attention to the dots (ب ت ث ن ي), hamza forms (أ إ ؤ ئ ء), ة versus ه, ى versus ي, and joined letters. Transcribe the handwritten Arabic text exactly as it is written, word by word. " +
@@ -431,8 +442,9 @@ const Processing = (() => {
         'Reply with only JSON: {"text": "<the transcription on one line>", "legible": true|false, "confidence": <0-100>}. ' +
         'If no Arabic handwriting is visible, reply {"text": "", "legible": false, "confidence": 0}.';
       let out;
-      try { out = await sample.json(prompt, {images: imagePath, modelTier: "default", effort: "medium", cache: false}); }
+      try { out = sample ? await sample.json(prompt, {images: imagePath, modelTier: "default", effort: "medium", cache: false}) : await this._remote(imagePath); }
       catch (e) {
+        if (e instanceof AppError) throw e;
         const c = e && e.code;
         if (c === "not_granted" || c === "sampling_disabled" || c === "images_unavailable" || c === "not_declared" || c === "capability_disabled") throw new AppError("ocr_unavailable", "لم يُسمح باستخدام خدمة التعرّف على الخط. اسمح بها عند ظهور الطلب، أو اكتب ما في الصورة يدوياً.");
         if (c === "rate_limited") throw new AppError("ocr_busy", "طلبات كثيرة الآن. انتظر قليلاً ثم أعد المحاولة، أو اكتب النص يدوياً.");
