@@ -205,10 +205,10 @@ class DictationSubmission {
       catch (e2) { throw new AppError("heic", "تعذّر تحويل صورة HEIC على هذا المتصفح. التقط الصورة بصيغة JPEG أو جرّب متصفحاً آخر."); }
     }
     if (bmp.width < 200 || bmp.height < 60) throw new AppError("small", "الصورة صغيرة جداً. قرّب الكاميرا من الورقة وأعد التصوير.");
-    const MAX = 1600, k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+    const MAX = 1280, k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
     const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
     const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); try { g.filter = "grayscale(1) contrast(1.35) brightness(1.05)"; } catch {} g.drawImage(bmp, 0, 0, c.width, c.height);
-    this.blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.88));
+    this.blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.82));
     if (!this.blob) throw new AppError("decode", "تعذّر تجهيز الصورة.");
     if (this.imagePath) URL.revokeObjectURL(this.imagePath);
     this.imagePath = URL.createObjectURL(this.blob);   /* kept in memory only, never stored (privacy) */
@@ -425,7 +425,9 @@ const Processing = (() => {
     async available(){ try { const s = await window.claude?.use?.("sample"); if (s){ const l = await s.limits(); if (l.images) return true; } } catch {} return !!OCRProcessor.ENDPOINT; }
     async _remote(blob){
       let r; try { r = await fetch(OCRProcessor.ENDPOINT, {method: "POST", headers: {"content-type": "image/jpeg"}, body: blob}); } catch { throw new AppError("ocr_failed", "تعذّر الاتصال بخدمة قراءة الخط. أعد المحاولة أو اكتب النص يدوياً."); }
+      if (r.status === 503) throw new AppError("ocr_busy", "الخدمة مزدحمة الآن. أعد المحاولة بعد قليل، أو اكتب النص يدوياً.");
       if (r.status === 429) throw new AppError("ocr_busy", "طلبات كثيرة الآن. انتظر قليلاً ثم أعد المحاولة، أو اكتب النص يدوياً.");
+      if (r.status === 503 || r.status === 429) throw new AppError("ocr_busy", "خدمة قراءة الخط مزدحمة الآن. أعد المحاولة بعد قليل، أو اكتب النص يدوياً.");
       if (!r.ok){ let d = ""; try { const j = await r.json(); d = " [" + r.status + ": " + (j.error || "") + " " + (j.detail || "") + "]"; } catch { d = " [" + r.status + "]"; } throw new AppError("ocr_failed", "تعذّر التعرّف على الخط." + d.slice(0, 260)); }
       return r.json();
     }
