@@ -30,7 +30,7 @@ h1,h2,h3{margin:0;line-height:1.3;text-wrap:balance}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
 .wrap{max-width:1120px;margin:0 auto;padding-block:20px 48px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-bottom:16px}
-.brand{display:flex;align-items:baseline;gap:10px}
+.brand{display:flex;align-items:baseline;gap:10px;text-decoration:none;cursor:pointer}
 .brand b{font-family:var(--font-write);font-size:34px;line-height:1;color:var(--accent)}
 .brand span{color:var(--mute);font-size:14px}
 .who{display:flex;align-items:center;gap:10px;color:var(--mute);font-size:14px}
@@ -439,7 +439,7 @@ const Processing = (() => {
 
   /* ---- OCR for Arabic handwriting (Claude vision through the page's `sample` capability) ---- */
   class OCRProcessor {
-    constructor(){ this.modelVersion = "Claude vision · default tier"; this.processingTimeLimit = 3000; }
+    constructor(){ this.modelVersion = "Claude vision · default tier"; this.processingTimeLimit = 5000; }
     /* standalone hosting: set this to your own OCR proxy URL (see ocr-worker.js); inside claude.ai the built-in capability is used instead */
     static get ENDPOINT(){ return (window.IMLA_OCR_URL || "").trim(); }
     async available(){ try { const s = await window.claude?.use?.("sample"); if (s){ const l = await s.limits(); if (l.images) return true; } } catch {} return !!OCRProcessor.ENDPOINT; }
@@ -750,7 +750,7 @@ const norm = Processing.norm;
     const u = App.user;
     $app.innerHTML = `<div class="wrap">
       <header class="top">
-        <div class="brand"><b>إملائي</b><span>تدرّب على الإملاء بخط يدك</span></div>
+        <a class="brand" href="#" data-act="home" title="الصفحة الرئيسية" aria-label="إملائي، الصفحة الرئيسية"><b>إملائي</b><span>تدرّب على الإملاء بخط يدك</span></a>
         <div class="who"><span>أهلاً، ${esc(u.name)}</span><button class="btn sm ghost" data-act="logout">تسجيل الخروج</button></div>
       </header>
       <nav class="tabs" role="tablist" aria-label="الأقسام">
@@ -916,7 +916,7 @@ const norm = Processing.norm;
     ["View Feedback", "عرض النتيجة بشكل واضح", "EvaluationResult.displayResult() · Presentation", "ok"]
   ];
   const NFR = [
-    ["قراءة الخط خلال 3 ثوانٍ", "يُقاس لكل محاولة ويظهر في بطاقة النتيجة. قدّمتُ الدقة على السرعة، فقد يتجاوز الحد أحياناً", "meas"],
+    ["قراءة الخط خلال 5 ثوانٍ", "يُقاس لكل محاولة ويظهر في بطاقة النتيجة. قدّمتُ الدقة على السرعة، فقد يتجاوز الحد أحياناً", "meas"],
     ["نطق بلا تأخير أو تشويه", "صوت المتصفح المحلي، مع مهلة 4 ثوانٍ ثم رسالة بديلة", "ok"],
     ["دقة التعرّف 90% على الخط الواضح", "لم تُقَس رسمياً. يمكنك تعديل النص المقروء وإعادة التقييم", "meas"],
     ["واجهة بسيطة على الجوال والحاسوب", "واجهة عربية متجاوبة (RTL)", "ok"],
@@ -1003,6 +1003,7 @@ const norm = Processing.norm;
     const a = b.dataset.act, v = b.dataset.v;
     if (a !== "del" && a !== "delall") S.delId = "";
     if (a === "tab"){ S.tab = v; render(); }
+    else if (a === "home"){ ev.preventDefault(); S.tab = "practice"; render(); window.scrollTo({top: 0, behavior: "smooth"}); }
     else if (a === "authmode"){ S.authMode = v; setMsg("auth"); render(); }
     else if (a === "guest"){ await App.guest(); S.ocrOk = null; render(); probeOcr(); }
     else if (a === "logout"){ App.logout(); Object.assign(S, {result: null, preview: null, tab: "practice", selectedId: "e1", level: 1, reveal: false, playing: false, busy: "", draftSentence: "", typedText: "", editText: "", mode: "image", msg: {}}); render(); }
