@@ -802,13 +802,12 @@ const norm = Processing.norm;
             <div style="display:flex;flex-direction:column;gap:8px">
               <div class="row">
                 <button class="btn sm" data-act="repeat">${ICON.repeat}أعد النطق</button>
-                <div class="seg" role="group" aria-label="سرعة النطق"><button data-act="rate" data-v="normal" aria-pressed="${S.rate === "normal"}">عادي</button><button data-act="rate" data-v="slow" aria-pressed="${S.rate === "slow"}">بطيء</button><button data-act="rate" data-v="dictation" aria-pressed="${S.rate === "dictation"}">إملاء</button></div>
+                <div class="seg" role="group" aria-label="سرعة النطق"><button data-act="rate" data-v="normal" aria-pressed="${S.rate === "normal"}">عادي</button><button data-act="rate" data-v="slow" aria-pressed="${S.rate === "slow"}">بطيء</button></div>
               </div>
               <span class="muted">اكتب ما تسمعه على ورقة. ${S.reveal ? "" : "نص الجملة مخفي حتى لا تقرأه."}</span>
             </div>
           </div>
           ${M("audio")}
-          ${S.rate === "dictation" ? `<div class="muted" style="margin-top:8px">وضع الإملاء: تُقرأ كل كلمة وحدها مع وقفة، ثم الجملة كاملة.</div>` : ""}
           <label class="f" for="voiceSel" style="margin-top:12px">الصوت
             <select id="voiceSel"><option value="">${App.hasRecorded() ? "تلقائي (الصوت المسجّل للموقع)" : S.voices.length ? "تلقائي (الأفضل المتاح: " + esc(S.voices[0].name) + ")" : "تلقائي"}</option>${S.voices.map(v => `<option value="${esc(v.name)}"${v.name === S.voice ? " selected" : ""}>${esc(v.name)} · ${esc(v.lang)}</option>`).join("")}</select></label>
           ${S.clipsLoading ? `<div class="msg" role="status">جارٍ تحميل الأصوات المسجّلة… (قد يستغرق ثواني في الاتصال البطيء)<div class="pbar"><i></i></div></div>` : ""}${!S.clipsLoading && App.ttsSupported() && !App.hasRecorded() && !S.voices.length && S.voicesLoaded ? `<div class="msg warn">لا يوجد صوت عربي على هذا الجهاز. ثبّت صوتاً عربياً من إعدادات اللغة في النظام، أو افتح الموقع في Microsoft Edge فهو يوفّر أصواتاً عربية طبيعية.</div>` : ""}
