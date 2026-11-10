@@ -880,7 +880,7 @@ const norm = Processing.norm;
       <div class="metrics">
         <div class="metric">الدقة<b>${r.score}%</b></div>
         <div class="metric">أخطاء<b>${bad}</b></div>
-        ${m.ocrMs != null ? `<div class="metric">قراءة الخط<b>${(m.ocrMs / 1000).toFixed(1)} ث</b><span class="chip ${ocrCls}">${ocrCls === "ok" ? "ضمن حد 3 ث" : "أبطأ من حد 3 ث"}</span></div>` : ""}
+        ${m.ocrMs != null ? `<div class="metric">قراءة الخط<b>${(m.ocrMs / 1000).toFixed(1)} ث</b><span class="chip ${ocrCls}">${ocrCls === "ok" ? "ضمن حد " : "أبطأ من حد "}${(m.ocrLimit / 1000)} ث</span></div>` : ""}
         <div class="metric">المقارنة والتقييم<b>${m.compareMs} مل ث</b><span class="chip ok">ضمن حد 1.5 ث</span></div>
         ${m.confidence != null ? `<div class="metric">ثقة القراءة<b>${m.confidence}%</b></div>` : ""}
       </div>
